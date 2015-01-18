@@ -1,25 +1,108 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research P1"
+author: "Phil Burdi (pburdi@gmail.com)"
+date: "Sunday, January 18, 2015"
+output: html_document
 ---
 
 
-## Loading and preprocessing the data
+Load up the libraries needed for this assignment.
+```{r, echo = FALSE}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
 
+```
 
+Download the data file and after we downloaded the file, we unzipped manual using winwar. (download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", "c5p1.zip"))
 
-## What is mean total number of steps taken per day?
+Read the data file and setup the environment.  
 
+```{r}
+ACT1 <- read.csv("activity.csv", sep = ",", header = TRUE)
+ACT2 <- na.omit(ACT1)
+ACT2 <- group_by(ACT2, date)
+summary(ACT2)
+```
 
+We are going to summarize to get the median and mean per day.  For question "What is mean total number of steps taken per day?"
 
-## What is the average daily activity pattern?
+```{r}
+ACT3 <- summarize(ACT2, total_steps = sum(steps), mean_steps = mean(steps), median_steps = median(steps))
+summary(ACT3$total_steps)
+```
 
+Now produce the histogram to show the total steps during all the intervals.
 
+```{r}
+hist(ACT3$total_steps, xlab="5 Minute Interval", main="Histogram of Total Steps")
+```
 
-## Imputing missing values
+To answer the question "What is the average daily activity pattern?" we applied the mean to the steps and to the interval`.
 
+```{r}
+ACT4 <- tapply(ACT2$steps, ACT2$interval, mean)
+```
 
+Now plot the result of the average number of steps taken.
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+plot(row.names(ACT4), ACT4, type = "l", xlab = "5-min a day interval", ylab = "Average Steps ", main = "Average Number Of Steps Taken", col = "red")
+```
+
+Now we input the missing values and see how it skews the results - we check the max interval and the number of rows
+
+```{r}
+Max_Interval <- which.max(ACT4)
+names(Max_Interval)
+na_cases <- ACT1[!complete.cases(ACT1),]
+nrow(na_cases)
+```
+
+Lets assign some data to the NAs
+
+```{r}
+ACT1_1 <- ACT1
+ACT1_1[is.na(ACT1_1)] <- 1
+```
+
+Plot the result and check against the previous histogram
+
+```{r}
+ACT2_1 <- group_by(ACT1_1, date)
+ACT3_1 <- summarize(ACT2_1, total_steps = sum(steps), mean_steps = mean(steps), median_steps = median(steps))
+summary(ACT3_1$total_steps)
+hist(ACT3_1$total_steps, xlab="5 Minute Interval", main="Total Steps with Data Added to NAs")
+```
+
+Now that we have seen the results above and plotted, the answer to this question "Do these values differ from the estimates from the first part of the assignment?" YES - but not by much on the mean and median, however the 0-5000 interval was significantly changed.
+
+Also, the question "What is the impact of imputing missing data on the estimates of the
+total daily number of steps?" It skews the lower end of the frequency.
+
+-----------------------------------------------------------------------
+
+Looking at the final question "Are there differences in activity patterns between weekdays and weekends?" we will setup the data-sets to identify the weekday and weekend patterns
+
+```{r}
+ACT2_1$date <- as.Date(ACT2_1$date, "%Y-%m-%d")
+ACT2_1$day <- weekdays(ACT2_1$date)
+ACT2_1$day_type <- c("weekday")
+for (w in 1:nrow(ACT2_1)){
+   if (ACT2_1$day[w] == "Saturday" || ACT2_1$day[w] == "Sunday"){
+     ACT2_1$day_type[w] <- "weekend"
+   }
+}
+ACT2_2 <- aggregate(steps ~ interval+day_type, ACT2_1, mean)
+```
+
+Now lets examine the data-set in a plot.  
+
+```{r}
+qplot(interval, steps, data=ACT2_2, geom=c("line"), xlab="5 Minute Interval", ylab="Number of Steps", main="") + facet_wrap(~ day_type, ncol=1)
+```
+
+As shown the data for the weekday plot indicates a high frequency of activity in the morning and tapers off significantly around 10 AM - the weekend plot indicates a fairly
+consistent pattern from morning to mid-afternoon.
+
+Thank you for reading - end of line...
